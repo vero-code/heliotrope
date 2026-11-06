@@ -1,15 +1,18 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import ForgeReconciler, {
   Box,
+  Button,
   Heading,
   Inline,
   Label,
   Lozenge,
   Select,
+  Spinner,
   Stack,
   Text,
   Textfield
 } from '@forge/react';
+import { invoke } from '@forge/bridge';
 import {
   PROBABILITY_OPTIONS,
   SEVERITY_OPTIONS,
@@ -20,6 +23,24 @@ const App = () => {
   const [severity, setSeverity] = useState(SEVERITY_OPTIONS[0].value);
   const [probability, setProbability] = useState(PROBABILITY_OPTIONS[0].value);
   const [mitigation, setMitigation] = useState('');
+  const [lastSaved, setLastSaved] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    invoke('getAssessment')
+      .then((saved) => {
+        if (saved) {
+          if (saved.severity) setSeverity(saved.severity);
+          if (saved.probability) setProbability(saved.probability);
+          if (saved.mitigation) setMitigation(saved.mitigation);
+          if (saved.updatedAt) setLastSaved(saved.updatedAt);
+        }
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, []);
 
   const evaluation = evaluateSafetyRisk(severity, probability, mitigation);
 
@@ -28,6 +49,37 @@ const App = () => {
     if (riskLevel === 'MEDIUM') return 'inprogress';
     return 'removed';
   };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const saved = await invoke('saveAssessment', {
+        severity,
+        probability,
+        mitigation,
+        safetyClass: evaluation.safetyClass,
+        riskLevel: evaluation.riskLevel,
+        verdict: evaluation.verdict,
+        clearedForRelease: evaluation.clearedForRelease
+      });
+      if (saved?.updatedAt) {
+        setLastSaved(saved.updatedAt);
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <Box padding="space.150">
+        <Inline space="space.100" alignBlock="center">
+          <Spinner size="small" />
+          <Text>Loading safety assessment...</Text>
+        </Inline>
+      </Box>
+    );
+  }
 
   return (
     <Box padding="space.150">
@@ -83,6 +135,21 @@ const App = () => {
             {evaluation.verdict}
           </Lozenge>
         </Box>
+
+        <Inline space="space.150" alignBlock="center">
+          <Button
+            appearance="primary"
+            isDisabled={isSaving}
+            onClick={handleSave}
+          >
+            {isSaving ? 'Saving...' : 'Save Assessment'}
+          </Button>
+          {lastSaved && (
+            <Text>
+              Saved: {new Date(lastSaved).toLocaleString()}
+            </Text>
+          )}
+        </Inline>
       </Stack>
     </Box>
   );
