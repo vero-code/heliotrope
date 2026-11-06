@@ -5,7 +5,7 @@ modules:
       resolver:
         function: resolver
       render: native
-      title: heliotrope
+      title: Heliotrope: Patient Safety Assessment
       icon: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
   function:
     - key: resolver
@@ -13,6 +13,9 @@ modules:
 resources:
   - key: main
     path: src/frontend/index.jsx
+permissions:
+  scopes:
+    - storage:app
 app:
   runtime:
     name: nodejs24.x
