@@ -1,12 +1,12 @@
 import Resolver from '@forge/resolver';
-import { storage } from '@forge/api';
+import { kvs } from '@forge/kvs';
 
 const resolver = new Resolver();
 
 // Fetch saved assessment for the current issue
 resolver.define('getAssessment', async ({ context }) => {
   const issueId = context?.extension?.issue?.id || 'default-issue';
-  const data = await storage.get(`risk-assessment-${issueId}`);
+  const data = await kvs.get(`risk-assessment-${issueId}`);
   return data || null;
 });
 
@@ -21,7 +21,7 @@ resolver.define('saveAssessment', async ({ payload, context }) => {
     updatedAt: new Date().toISOString()
   };
 
-  await storage.set(`risk-assessment-${issueId}`, record);
+  await kvs.set(`risk-assessment-${issueId}`, record);
   return record;
 });
 
