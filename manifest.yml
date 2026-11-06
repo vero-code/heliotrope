@@ -5,7 +5,7 @@ modules:
       resolver:
         function: resolver
       render: native
-      title: Heliotrope: Patient Safety Assessment
+      title: 'Heliotrope: Patient Safety Assessment'
       icon: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
   function:
     - key: resolver
