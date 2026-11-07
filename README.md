@@ -9,8 +9,10 @@ Heliotrope is an Atlassian Forge app for Jira that embeds a deterministic patien
 
 ---
 
-## Category
-**Apps for Specialized Industries** (Healthcare & Medical Device Software)
+## Hackathon Track & Metadata
+- **Primary Category:** Apps for Specialized Industries (Healthcare & Medical Device Software)
+- **Bonus Prize:** Best Marketplace published app
+- **Forge App ID:** `8926276c-2a13-466e-814f-55b729f428d6`
 
 ---
 
@@ -123,6 +125,15 @@ forge deploy
 # Deploy to production (with scope upgrade approval if applicable)
 forge deploy -e production --approve MAJOR_VERSION_RULE
 ```
+
+---
+
+## Privacy Policy & Support
+
+- **Data Storage & Residency:** Heliotrope runs entirely on Atlassian Forge (Runs on Atlassian). All safety assessment records are stored exclusively within the customer's Atlassian Cloud tenant using `@forge/kvs` and Jira Issue Properties.
+- **No Personal Data Collection:** The app does not collect, transmit, or store Personally Identifiable Information (PII) or Protected Health Information (PHI) on external servers. User references are handled strictly via native Atlassian `accountId` identifiers within Jira.
+- **No Third-Party Egress:** The app makes zero external network requests and includes no third-party analytics or tracking scripts.
+- **Support & Contact:** For bug reports, feature requests, or support inquiries, please open an issue at [https://github.com/vero-code/heliotrope/issues](https://github.com/vero-code/heliotrope/issues).
 
 ---
 
