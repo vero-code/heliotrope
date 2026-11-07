@@ -7,12 +7,22 @@ modules:
       render: native
       title: 'Heliotrope: Patient Safety Assessment'
       icon: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
+  jira:projectPage:
+    - key: heliotrope-risk-register-page
+      resource: project-page
+      resolver:
+        function: resolver
+      render: native
+      title: 'Heliotrope: Safety Risk Register'
+      icon: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
   function:
     - key: resolver
       handler: index.handler
 resources:
   - key: main
     path: src/frontend/index.jsx
+  - key: project-page
+    path: src/frontend/projectPage.jsx
 permissions:
   scopes:
     - storage:app
@@ -20,7 +30,7 @@ permissions:
     - write:jira-work
 app:
   runtime:
-    name: nodejs24.x
+    name: nodejs22.x
     memoryMB: 256
     architecture: arm64
   id: ari:cloud:ecosystem::app/8926276c-2a13-466e-814f-55b729f428d6
