@@ -29,21 +29,41 @@ const RISK_MATRIX = {
   }
 };
 
-export function evaluateSafetyRisk(severity, probability, mitigation = '') {
+/**
+ * Evaluates patient safety risk according to IEC 62304 and ISO 14971.
+ */
+export function evaluateSafetyRisk(
+  severity,
+  probability,
+  mitigation = '',
+  residualProbability = 'RARE'
+) {
   const row = RISK_MATRIX[severity] || RISK_MATRIX.NEGLIGIBLE;
-  const assessment = row[probability] || row.RARE;
+  const initialAssessment = row[probability] || row.RARE;
+  const residualAssessment = row[residualProbability] || row.RARE;
 
-  const requiresMitigation = assessment.riskLevel !== 'LOW';
+  const requiresMitigation = initialAssessment.riskLevel !== 'LOW';
   const hasMitigation = mitigation.trim().length > 0;
-  const clearedForRelease = !requiresMitigation || hasMitigation;
+  const residualAcceptable = residualAssessment.riskLevel !== 'HIGH';
+
+  const clearedForRelease =
+    !requiresMitigation || (hasMitigation && residualAcceptable);
+
+  let verdict = 'Cleared for Release';
+  if (!clearedForRelease) {
+    verdict = !hasMitigation
+      ? 'Release Blocked: Mitigation Required'
+      : 'Release Blocked: Residual Risk Too High';
+  }
 
   return {
-    safetyClass: assessment.safetyClass,
-    riskLevel: assessment.riskLevel,
+    safetyClass: initialAssessment.safetyClass,
+    riskLevel: initialAssessment.riskLevel,
+    residualRiskLevel: requiresMitigation
+      ? residualAssessment.riskLevel
+      : initialAssessment.riskLevel,
     requiresMitigation,
     clearedForRelease,
-    verdict: clearedForRelease
-      ? 'Cleared for Release'
-      : 'Release Blocked: Mitigation Required'
+    verdict
   };
 }

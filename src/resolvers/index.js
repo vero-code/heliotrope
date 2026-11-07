@@ -3,7 +3,8 @@ import { kvs } from '@forge/kvs';
 
 const resolver = new Resolver();
 
-// Fetch saved assessment for the current issue
+const MAX_HISTORY_ENTRIES = 10;
+
 resolver.define('getAssessment', async ({ context }) => {
   const issueId = context?.extension?.issue?.id || 'default-issue';
   const data = await kvs.get(`risk-assessment-${issueId}`);
@@ -14,11 +15,30 @@ resolver.define('getAssessment', async ({ context }) => {
 resolver.define('saveAssessment', async ({ payload, context }) => {
   const issueId = context?.extension?.issue?.id || 'default-issue';
   const issueKey = context?.extension?.issue?.key || '';
+  const accountId = context?.accountId || null;
+  const updatedAt = new Date().toISOString();
+
+  const existing = (await kvs.get(`risk-assessment-${issueId}`)) || {};
+  const previousHistory = Array.isArray(existing.history) ? existing.history : [];
+
+  const auditEntry = {
+    updatedAt,
+    accountId,
+    safetyClass: payload.safetyClass,
+    riskLevel: payload.riskLevel,
+    residualRiskLevel: payload.residualRiskLevel,
+    verdict: payload.verdict,
+    mitigation: payload.mitigation || ''
+  };
+
+  const history = [auditEntry, ...previousHistory].slice(0, MAX_HISTORY_ENTRIES);
 
   const record = {
     ...payload,
     issueKey,
-    updatedAt: new Date().toISOString()
+    accountId,
+    updatedAt,
+    history
   };
 
   await kvs.set(`risk-assessment-${issueId}`, record);
