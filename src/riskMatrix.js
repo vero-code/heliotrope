@@ -52,8 +52,8 @@ export function evaluateSafetyRisk(
   let verdict = 'Cleared for Release';
   if (!clearedForRelease) {
     verdict = !hasMitigation
-      ? 'Release Blocked: Mitigation Required'
-      : 'Release Blocked: Residual Risk Too High';
+      ? 'Release Blocked: No Mitigation'
+      : 'Release Blocked: High Residual';
   }
 
   return {
