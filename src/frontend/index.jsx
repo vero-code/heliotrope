@@ -196,13 +196,17 @@ const App = () => {
           />
         </Box>
 
-        <Inline space="space.100" alignBlock="center">
-          <Text>Safety Class:</Text>
-          <Lozenge appearance="new">{evaluation.safetyClass}</Lozenge>
-          <Text>Initial Risk:</Text>
-          <Lozenge appearance={getRiskLozengeAppearance(evaluation.riskLevel)}>
-            {evaluation.riskLevel}
-          </Lozenge>
+        <Inline space="space.200" alignBlock="center">
+          <Inline space="space.100" alignBlock="center">
+            <Text>Safety Class:</Text>
+            <Lozenge appearance="new">{evaluation.safetyClass}</Lozenge>
+          </Inline>
+          <Inline space="space.100" alignBlock="center">
+            <Text>Initial Risk:</Text>
+            <Lozenge appearance={getRiskLozengeAppearance(evaluation.riskLevel)}>
+              {evaluation.riskLevel}
+            </Lozenge>
+          </Inline>
         </Inline>
 
         {evaluation.requiresMitigation && (
