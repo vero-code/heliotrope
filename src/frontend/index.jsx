@@ -20,6 +20,7 @@ import {
   SEVERITY_OPTIONS,
   evaluateSafetyRisk
 } from '../riskMatrix';
+import { syncAssessmentToJira } from './jiraSync';
 
 const getRiskLozengeAppearance = (riskLevel) => {
   if (riskLevel === 'LOW') return 'success';
@@ -82,7 +83,7 @@ const App = () => {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const saved = await invoke('saveAssessment', {
+      const payload = {
         severity,
         probability,
         residualProbability,
@@ -92,7 +93,11 @@ const App = () => {
         residualRiskLevel: evaluation.residualRiskLevel,
         verdict: evaluation.verdict,
         clearedForRelease: evaluation.clearedForRelease
-      });
+      };
+
+      const saved = await invoke('saveAssessment', payload);
+      await syncAssessmentToJira(payload);
+
       if (saved) {
         if (saved.updatedAt) setLastSaved(saved.updatedAt);
         if (saved.accountId) setAssessedBy(saved.accountId);
@@ -243,14 +248,14 @@ const App = () => {
           </Stack>
         )}
 
-        <Box>
-          <Label>Release Verdict</Label>
+        <Inline space="space.100" alignBlock="center">
+          <Text>Release Verdict:</Text>
           <Lozenge
             appearance={evaluation.clearedForRelease ? 'success' : 'removed'}
           >
             {evaluation.verdict}
           </Lozenge>
-        </Box>
+        </Inline>
 
         <Inline space="space.150" alignBlock="center">
           <Button
@@ -262,7 +267,10 @@ const App = () => {
           </Button>
           {lastSaved && (
             <Inline space="space.100" alignBlock="center">
-              <Text>Signed off {new Date(lastSaved).toLocaleString()} by</Text>
+              <Text>
+                Signed off {new Date(lastSaved).toLocaleString()}
+                {assessedBy ? ' by' : ''}
+              </Text>
               {assessedBy && <User accountId={assessedBy} />}
             </Inline>
           )}
