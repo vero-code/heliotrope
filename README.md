@@ -3,9 +3,9 @@
 ![Platform](https://img.shields.io/badge/Platform-Atlassian%20Forge-blue)
 ![UI](https://img.shields.io/badge/UI-Forge%20UI%20Kit%20%28@forge/react%29-blueviolet)
 ![Storage](https://img.shields.io/badge/Storage-@forge/kvs-green)
-![Runtime](https://img.shields.io/badge/Runtime-Node.js%2024.x-brightgreen)
+![Runtime](https://img.shields.io/badge/Runtime-Node.js%2022.x-brightgreen)
 
-Heliotrope is an Atlassian Forge app for Jira that embeds a deterministic patient safety risk assessment engine directly into Jira issue panels, enforcing medical software compliance standards (**IEC 62304** and **ISO 14971**).
+Heliotrope is an Atlassian Forge app for Jira that embeds a deterministic patient safety risk assessment workflow directly into Jira, supporting medical software compliance under **IEC 62304** and **ISO 14971**.
 
 ---
 
@@ -14,14 +14,33 @@ Heliotrope is an Atlassian Forge app for Jira that embeds a deterministic patien
 
 ---
 
-## Overview
+## Overview & Practical Value
 
-In regulated medical device and healthcare software development, defects and change requests must undergo formal patient safety evaluation before code can be released.
+In regulated medical device and healthcare software engineering, defects and change requests require documented hazard analysis, risk control verification, and traceability before release.
 
-Heliotrope eliminates administrative friction by integrating a real-time risk classification matrix directly into the Jira issue view:
-- **IEC 62304 Safety Classification:** Maps Harm Severity (*Negligible*, *Moderate*, *Critical*) and Occurrence Probability (*Rare*, *Possible*, *Frequent*) into Software Safety Classes (*Class A*, *Class B*, *Class C*) and Risk Levels (*Low*, *Medium*, *High*).
-- **Automated Release Gating:** Issues evaluated as Medium or High risk require a mandatory Risk Mitigation Plan. The status remains `Release Blocked: Mitigation Required` until mitigation is recorded, upon which it switches to `Cleared for Release`.
-- **Audit Sign-Off:** Records the verified assessment state and timestamp for compliance audits.
+Heliotrope integrates these controls directly into Jira across three native modules (`jira:issuePanel`, `jira:projectPage`, and `jira:workflowValidator`):
+
+1. **Initial & Residual Risk Classification (`jira:issuePanel`):**
+   - Maps **Harm Severity** (*Negligible*, *Moderate*, *Critical*) and **Initial Occurrence Probability** (*Rare*, *Possible*, *Frequent*) to IEC 62304 Software Safety Classes (`Class A`, `Class B`, `Class C`) and Risk Levels (`LOW`, `MEDIUM`, `HIGH`).
+   - For `MEDIUM` and `HIGH` risk items, requires both a documented **Risk Control / Mitigation Plan** and a **Post-Mitigation (Residual) Probability** evaluation.
+   - Issues remain in `Release Blocked: Mitigation Required` or `Release Blocked: Residual Risk Too High` until a mitigation plan is entered and residual risk is reduced below `HIGH`, at which point the verdict updates to `Cleared for Release`.
+
+2. **Accountable Sign-Off & Compliance Audit Trail:**
+   - Records the Jira `accountId` of the engineer or QA reviewer who signs off on the assessment (rendered via the `@forge/react` `User` component) and the exact timestamp.
+   - Stores a chronological revision history (`Compliance Audit Trail`, up to 10 entries per issue) showing timestamp, reviewer, safety class, `Initial -> Residual` risk transition, and release verdict.
+
+3. **Automated Jira Labels & Issue Properties Sync:**
+   - Upon saving, synchronizes assessment status to the Jira issue via `@forge/bridge` (`requestJira`):
+     - **Jira Labels:** Automatically applies `safety-class-a`, `safety-class-b`, or `safety-class-c` alongside `safety-cleared` or `release-blocked` (while preserving existing user labels), making safety posture visible on Kanban/Scrum boards and queryable via JQL.
+     - **Jira Issue Property:** Writes structured JSON data to `/rest/api/3/issue/{issueKey}/properties/heliotrope.safety` for consumption by Jira Automation rules.
+
+4. **Project Safety Risk Register (`jira:projectPage`):**
+   - Adds **Heliotrope: Safety Risk Register** to the project navigation sidebar.
+   - Aggregates all assessed issues in the project into a single table with summary counters (`Total Assessed Issues`, `Cleared for Release`, `Release Blocked`), eliminating manual spreadsheet exports during regulatory audits.
+
+5. **Hard Release Gate (`jira:workflowValidator`):**
+   - Provides the **Heliotrope: Patient Safety Release Gate** workflow validator.
+   - When attached by a Jira administrator to a closing transition (e.g., `Mark as done`), Jira physically blocks the status transition if an issue has no recorded safety assessment or is currently `Release Blocked`.
 
 ---
 
@@ -30,17 +49,20 @@ Heliotrope eliminates administrative friction by integrating a real-time risk cl
 ```
 src/
 ├── frontend/
-│   └── index.jsx       # Atlassian UI Kit (@forge/react) issue panel interface
+│   ├── index.jsx         # Issue panel UI: risk form, sign-off, and Compliance Audit Trail
+│   ├── projectPage.jsx   # Project-level Safety Risk Register (DynamicTable + summary counters)
+│   └── jiraSync.js       # Client-side sync for Jira Labels and Issue Properties via requestJira
 ├── resolvers/
-│   └── index.js        # Forge backend resolvers handling @forge/kvs operations
-├── riskMatrix.js       # Pure, deterministic IEC 62304 / ISO 14971 risk matrix logic
-└── index.js            # Entry point exporting resolver handlers
+│   └── index.js          # Backend resolvers for per-issue and project-wide @forge/kvs queries
+├── riskMatrix.js         # Pure, deterministic IEC 62304 / ISO 14971 risk evaluation logic
+├── validator.js          # Workflow validator blocking transitions when clearedForRelease is false
+└── index.js              # Entry point exporting resolver and workflow validator handlers
 ```
 
-- **Frontend:** Built with native `@forge/react` UI Kit components (`Box`, `Stack`, `Inline`, `Select`, `Textfield`, `Lozenge`, `Button`).
-- **Core Logic:** Pure JavaScript functions in `src/riskMatrix.js` without third-party dependencies or side effects.
-- **Backend & Storage:** `@forge/resolver` with modern `@forge/kvs` Key-Value Store. Data is scoped per issue ID (`risk-assessment-${issueId}`).
-- **Security:** Requires only `storage:app` scope. Zero third-party network egress, zero external telemetry, zero storage of Personally Identifiable Information (PII).
+- **Frontend:** Built strictly with native `@forge/react` UI Kit components (`Box`, `Stack`, `Inline`, `Select`, `Textfield`, `Lozenge`, `Button`, `DynamicTable`, `EmptyState`, `User`, `Spinner`).
+- **Core Logic:** Pure JavaScript in `src/riskMatrix.js` with zero external dependencies or side effects.
+- **Backend & Persistence:** `@forge/resolver` with `@forge/kvs` Key-Value Store (`risk-assessment-${issueId}`).
+- **Permissions & Privacy:** Uses `storage:app`, `read:jira-work`, and `write:jira-work` (for label and issue property synchronization). Zero external network egress and zero third-party telemetry.
 
 ---
 
@@ -54,24 +76,35 @@ Judges can install Heliotrope directly onto any Jira Cloud site using the offici
 
 ## Testing Instructions
 
-1. **Install App:** Open the installation link above and select your Jira Cloud development site.
-2. **Open an Issue:** Navigate to Jira and open any issue (or create a new task/bug).
+### Part 1: Issue Panel, Audit Trail & Jira Labels (Works out of the box)
+1. **Install App:** Open the installation link above and select your Jira Cloud site.
+2. **Open an Issue:** Navigate to any Jira project and open an issue (or create a new one).
 3. **Locate Panel:** Open the **Heliotrope: Patient Safety Assessment** issue panel.
-4. **Verify Baseline:** Default values (*Negligible* / *Rare*) evaluate to `Class A`, `LOW` risk, with status `Cleared for Release`.
+4. **Verify Baseline:** Default values (*Negligible* / *Rare*) evaluate to `Class A`, `LOW` risk, with verdict `Cleared for Release`.
 5. **Trigger Risk Escalation:**
-   - Change *Harm Severity* to `Critical (Permanent injury or life-threatening)`.
-   - The matrix automatically escalates to `Class B` (`MEDIUM` risk).
-   - *Release Status* switches to `Release Blocked: Mitigation Required`.
-   - The *Risk Mitigation Plan* input field dynamically appears.
-6. **Escalate to High Risk:**
-   - Change *Occurrence Probability* to `Possible` or `Frequent`.
-   - Safety Class escalates to `Class C` (`HIGH` risk).
-7. **Apply Mitigation:**
-   - Enter a mitigation description in *Risk Mitigation Plan* (e.g., `Hardware limiter verified by QA`).
-   - *Release Status* immediately updates to `Cleared for Release`.
-8. **Save & Persist:**
-   - Click `Save Assessment`. An audit timestamp (`Saved: <date/time>`) appears.
-   - Reload the page (`F5`). All assessment parameters, mitigation text, and timestamp reload from `@forge/kvs`.
+   - Change *Harm Severity* to `Critical (Permanent injury or life-threatening)` and *Initial Occurrence Probability* to `Frequent (Regular occurrence)`.
+   - The matrix escalates to `Class C` (`HIGH` initial risk) and displays `Release Blocked: Mitigation Required`.
+   - The *Risk Control / Mitigation Plan* input and *Post-Mitigation (Residual) Probability* selector appear.
+6. **Apply Mitigation & Residual Risk:**
+   - Enter a mitigation plan (e.g., `Added hardware dosage limiter and unit test verification`).
+   - Set *Post-Mitigation (Residual) Probability* to `Rare (Unlikely to occur)`.
+   - Residual Risk updates to `MEDIUM`, and Release Verdict updates to `Cleared for Release`.
+7. **Sign Off & Verify Audit Trail:**
+   - Click **Sign Off & Save**.
+   - Verify that your Jira user profile, timestamp, and a new row in the **Compliance Audit Trail** table appear.
+   - Check the issue's **Labels** field in Jira to confirm `safety-class-c` and `safety-cleared` were automatically applied.
+   - Reload the page (`F5`) to confirm persistence from `@forge/kvs`.
+
+### Part 2: Project Safety Risk Register (Works out of the box)
+1. In the left project sidebar, select **Heliotrope: Safety Risk Register**.
+2. Verify the summary counters (`Total Assessed Issues`, `Cleared for Release`, `Release Blocked`) and the aggregated compliance table listing all assessed issues in the project.
+
+### Part 3: Workflow Release Gate (`jira:workflowValidator` — Optional Admin Enforcement)
+1. Open an issue, click the status dropdown → **View workflow** → **Edit workflow**.
+2. In the workflow diagram, select the transition leading to **Done** (e.g., `Mark as done`).
+3. Under **Rules** → **Validate details**, click **+** and select **Heliotrope: Patient Safety Release Gate**, then click **Add** and **Update workflow**.
+4. In an issue, save a blocked assessment (e.g., `Critical` severity with an empty mitigation plan) and attempt to transition the issue to **Done**. Confirm that Jira blocks the transition with the Heliotrope Safety Gate error message.
+5. Enter a valid mitigation plan, click **Sign Off & Save** (`Cleared for Release`), and transition the issue to **Done** — the transition now succeeds.
 
 ---
 
@@ -87,8 +120,8 @@ forge lint
 # Deploy to development
 forge deploy
 
-# Deploy to production
-forge deploy -e production
+# Deploy to production (with scope upgrade approval if applicable)
+forge deploy -e production --approve MAJOR_VERSION_RULE
 ```
 
 ---
