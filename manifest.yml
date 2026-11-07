@@ -15,9 +15,16 @@ modules:
       render: native
       title: 'Heliotrope: Safety Risk Register'
       icon: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
+  jira:workflowValidator:
+    - key: heliotrope-release-safety-validator
+      name: 'Heliotrope: Patient Safety Release Gate'
+      description: 'Blocks transition if IEC 62304 / ISO 14971 safety assessment is missing or Release Blocked.'
+      function: validator
   function:
     - key: resolver
       handler: index.handler
+    - key: validator
+      handler: index.validateReleaseGate
 resources:
   - key: main
     path: src/frontend/index.jsx
